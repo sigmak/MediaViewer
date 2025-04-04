@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project FileVersion="2" Name="SkiaSharpImageViewer" MainFile="SkiaSharpImageViewer.pas" OutputFileName="SkiaSharpImageViewer.exe" OutputDirectory="" ProjectType="WindowsApp" IncludeDebugInfo="True" GenerateXMLDoc="False" CommandLineArguments="" AppIcon="" DeleteEXE="True" DeletePDB="True" Product="" Company="" Trademark="" Copyright="" Title="" Description="" MajorVersion="0" MinorVersion="0" BuildVersion="0" RevisionVersion="0">
+  <Items>
+    <Item Type="SourceFile" Name="SkiaSharpImageViewer.pas" Path="SkiaSharpImageViewer.pas" />
+    <Item Type="SourceFile" Name="Unit1.pas" Path="Unit1.pas" />
+    <Item Type="SourceFile" Name="ImageLoader.pas" Path="ImageLoader.pas" />
+    <Item Type="SourceFile" Name="RasterImageHandler.pas" Path="RasterImageHandler.pas" />
+    <Item Type="SourceFile" Name="AnimatedImageHandler.pas" Path="AnimatedImageHandler.pas" />
+    <Item Type="Reference" AssemblyName="System" FullAssemblyName="System.dll" />
+    <Item Type="Reference" AssemblyName="System.Windows.Forms" FullAssemblyName="System.Windows.Forms.dll" />
+    <Item Type="Reference" AssemblyName="System.Drawing" FullAssemblyName="System.Drawing.dll" />
+    <Item Type="Reference" AssemblyName="System.Core" FullAssemblyName="System.Core.dll" />
+    <Item Type="Reference" AssemblyName="System.Data" FullAssemblyName="System.Data.dll" />
+    <Item Type="Reference" AssemblyName="System.Data.DataSetExtensions" FullAssemblyName="System.Data.DataSetExtensions.dll" />
+    <Item Type="Reference" AssemblyName="System.Xml" FullAssemblyName="System.Xml.dll" />
+    <Item Type="Reference" AssemblyName="System.Xml.Linq" FullAssemblyName="System.Xml.Linq.dll" />
+    <Item Type="Reference" AssemblyName="SkiaSharp" FullAssemblyName="SkiaSharp.dll" />
+    <Item Type="Reference" AssemblyName="SkiaSharp.Views.WindowsForms" FullAssemblyName="SkiaSharp.Views.WindowsForms.dll" />
+    <Item Type="Reference" AssemblyName="SkiaSharp.Extended.Svg" FullAssemblyName="SkiaSharp.Extended.Svg.dll" />
+  </Items>
+</Project>
