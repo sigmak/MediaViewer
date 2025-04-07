@@ -5,160 +5,165 @@ unit AnimatedImageHandler;
 interface
 
 uses
-    Classes, SysUtils, Graphics, Forms, Controls,Dialogs, ExtCtrls, StdCtrls,
-    ImageLoader,
-    LCL.Skia, System.Skia,
-    Types, System.UITypes, System.IOUtils;
-    //Skia, Skia.Types, Skia.Codec, Skia.Image, ImageLoader;
+  Classes, SysUtils, Graphics, Forms, Controls, Dialogs, ExtCtrls, StdCtrls,
+  LCL.Skia, System.Skia,
+  SyncObjs,
+  libwebp, fpreadwebp, webpimage,
+  LCLType,
+  FPImage, FPReadGif,
+  Types, System.UITypes, System.IOUtils,
+  BGRABitmap, BGRABitmapTypes, BGRAAnimatedGif;
 
-//  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-//  Skia, Skia.Types, Skia.Codec, Skia.Image, ImageLoader;
-
-// 2025.04.07 gif, webp 애니메이션 기능은 skiaSharp 과 사용법이 달라서 아직은 구현 실패했음.
 type
-  ENotImplementedException = class(Exception)
-  public
-    constructor Create;
-  end;
-
-  TAnimatedImageHandler = class(TImageLoader)
+  { TAnimatedImageHandler }
+  TAnimatedImageHandler = class
   private
-    FCodec: ISkCodec;
-    FTargetImage: TImage;
-    procedure LoadAnimationFrames;
+    FBitmap: TBitmap;
+    FImage: TImage;
+    FWidth, FHeight: Integer;
+    procedure LoadWebP(const AFileName: string);
+    procedure LoadGIF(const FileName: string);
+    function LoadFileToMemory(const AFileName: string; out ASize: Cardinal): PByte;
   public
-    procedure Animation(const FilePath: string; TargetImage: TImage);
-  protected
-    function LoadImageInternal(const FilePath: string): TBitmap; override;
+    destructor Destroy; override;
+    procedure Animation(const AFileName: string; const AImage: TImage);
   end;
 
 implementation
 
-{ ENotImplementedException }
-
-constructor ENotImplementedException.Create;
-begin
-  inherited Create('이 메서드는 구현되지 않았습니다.');
-end;
-
 { TAnimatedImageHandler }
 
-procedure TAnimatedImageHandler.Animation(const FilePath: string; TargetImage: TImage);
+destructor TAnimatedImageHandler.Destroy;
+begin
+  FBitmap.Free;
+  inherited Destroy;
+end;
+
+procedure TAnimatedImageHandler.Animation(const AFileName: string; const AImage: TImage);
+var
+  Ext: string;
+begin
+  if not Assigned(AImage) then
+    raise Exception.Create('TImage가 할당되지 않았습니다.');
+
+  FImage := AImage;
+
+  Ext := LowerCase(ExtractFileExt(AFileName));
+  try
+    if Ext = '.webp' then
+      LoadWebP(AFileName)
+    else if Ext = '.gif' then
+      LoadGIF(AFileName)
+    else
+      raise Exception.Create('지원되지 않는 파일 형식입니다.');
+  except
+    on E: Exception do
+      ShowMessage('애니메이션 로드 중 오류가 발생했습니다: ' + E.Message);
+  end;
+end;
+
+procedure InitializeBitmap(var Bitmap: TBitmap; Width, Height: Integer);
+begin
+  with Bitmap do
+  begin
+    SetSize(Width, Height);
+    if RawImage.Description.BitsPerPixel <> 32 then
+    begin
+      RawImage.Description.Init_BPP32_B8G8R8A8_BIO_TTB(Width, Height);
+      RawImage.CreateData(true);
+    end;
+  end;
+end;
+
+procedure TAnimatedImageHandler.LoadWebP(const AFileName: string);
+var
+  WebPData: PByte;
+  WebPSize: Cardinal;
+  Width, Height: Integer;
+  Bitmap: TBitmap;
+begin
+  WebPData := nil;
+  try
+    // WebP 파일을 메모리로 로드
+    WebPData := LoadFileToMemory(AFileName, WebPSize);
+    if WebPData = nil then
+      raise Exception.Create('WebP 파일 로드 실패');
+
+    // WebP 이미지 크기 가져오기
+    WebPGetInfo(WebPData, WebPSize, @Width, @Height);
+    //if WebPGetInfo(WebPData, WebPSize, @Width, @Height) = 0 then
+    //  raise Exception.Create('WebP 정보 가져오기 실패');
+
+    // 비트맵 초기화
+    Bitmap := TBitmap.Create;
+    try
+      Bitmap.PixelFormat := pf32bit; // 32비트 RGBA 형식으로 설정
+      Bitmap.SetSize(Width, Height);
+
+      // WebP 디코딩
+      //if WebPDecodeRGBAInto(WebPData, WebPSize, PByte(Bitmap.RawImage.Data), Bitmap.RawImage.Description.BitsPerLine * Height, Width * 4) = 0 then
+      //  raise Exception.Create('WebP 디코딩 실패');
+
+      // TImage에 비트맵 설정
+      FImage.Picture.Bitmap.Assign(Bitmap);
+      // 화면 갱신
+      FImage.Refresh;
+
+      Application.ProcessMessages;
+      Sleep(100); // 프레임 간격 지연
+    finally
+      Bitmap.Free;
+    end;
+  finally
+    if WebPData <> nil then
+      FreeMem(WebPData);
+  end;
+end;
+
+procedure TAnimatedImageHandler.LoadGIF(const FileName: string);
+var
+  GIFImage2: TBGRAAnimatedGif;
+  GIFImage: TFPMemoryImage;
+  Reader: TFPReaderGIF;
+  FrameIndex: Integer;
+begin
+  GIFImage2 := TBGRAAnimatedGif.Create;
+  GIFImage2.LoadFromFile(FileName);
+  GIFImage := TFPMemoryImage.Create(GIFImage2.Width, GIFImage2.Height);
+  Reader := TFPReaderGIF.Create;
+  try
+    GIFImage.LoadFromFile(FileName, Reader);
+    for FrameIndex := 0 to GIFImage2.Count - 1 do
+    begin
+      //Reader.CurrentFrame := FrameIndex;
+      // GIF 이미지를 TImage에 복사
+      FImage.Picture.Bitmap.Assign(GIFImage2.FrameImage[FrameIndex]);
+
+      // 화면 갱신
+      FImage.Refresh;
+
+      Application.ProcessMessages;
+      Sleep(20); // 프레임 간격 지연
+    end;
+  finally
+    Reader.Free;
+    GIFImage.Free;
+    GIFImage2.Free;
+  end;
+end;
+
+function TAnimatedImageHandler.LoadFileToMemory(const AFileName: string; out ASize: Cardinal): PByte;
 var
   FileStream: TFileStream;
-  //SkStream: TSkStream; //사용안됨
-  //LAnimatedImage: SkAnimatedImage; // 사용안됨.
 begin
-  FTargetImage := TargetImage;
-{
+  FileStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyWrite);
   try
-    // 파일 스트림 열기
-    FileStream := TFileStream.Create(FilePath, fmOpenRead or fmShareDenyWrite);
-    try
-      //SkStream := TSKManagedStream.Create(FileStream);
-
-      // 코덱 생성
-      FCodec := TSkCodec.MakeFromStream(FileStream); //SkStream
-      if not Assigned(FCodec) or ( StrToInt(FCodec.FrameCount) <= 1) then
-      begin
-        ShowMessage('지원되지 않는 애니메이션 형식입니다.');
-        Exit;
-      end;
-
-      // 새로운 스레드에서 애니메이션 로드 시작
-      TThread.CreateAnonymousThread(LoadAnimationFrames).Start;
-
-    finally
-      FileStream.Free;
-    end;
-  except
-    on E: Exception do
-    begin
-      ShowMessage('애니메이션 로드 중 오류가 발생했습니다: ' + E.Message);
-    end;
+    ASize := FileStream.Size;
+    GetMem(Result, ASize);
+    FileStream.ReadBuffer(Result^, ASize);
+  finally
+    FileStream.Free;
   end;
-  }
-end;
-
-procedure TAnimatedImageHandler.LoadAnimationFrames;
-{
-var
-  CodecOptions: TSkCodecOptions;
-  SkImageInfo: TSkImageInfo;
-  SkBitmap: ISkBitmap;
-  Image: ISkImage;
-  Data: TBytes;
-  MemStream: TMemoryStream;
-  Bitmap: TBitmap;
-  i: Integer;
-  }
-begin
-  {
-  try
-    if FCodec.FrameCount > 1 then
-    begin
-      for i := 0 to FCodec.FrameCount - 1 do
-      begin
-        // 코덱 옵션 설정
-        CodecOptions := TSkCodecOptions.Create(i);
-
-        // 이미지 정보 및 비트맵 생성
-        SkImageInfo := TSkImageInfo.Create(FCodec.Width, FCodec.Height, TSkColorType.RGBA8888, TSkAlphaType.Premul);
-        SkBitmap := TSkBitmap.Create(SkImageInfo);
-
-        // 픽셀 데이터 디코딩
-        var Result2 := FCodec.GetPixels(SkBitmap.Info, SkBitmap.PeekPixels, CodecOptions);
-        if Result2 <> TSkCodecResult.Success then
-          raise Exception.Create('이미지 디코딩 실패: ' + Result2.ToString);
-
-        // SKBitmap을 PNG 형식으로 인코딩
-        Image := TSkImage.MakeFromBitmap(SkBitmap);
-        Data := Image.EncodeToData(TSkEncodedImageFormat.PNG, 100);
-
-        // 메모리 스트림으로 저장
-        MemStream := TMemoryStream.Create;
-        try
-          MemStream.WriteBuffer(Data[0], Length(Data));
-          MemStream.Position := 0;
-
-          // TBitmap으로 변환
-          Bitmap := TBitmap.Create;
-          try
-            Bitmap.LoadFromStream(MemStream);
-
-            // UI 스레드에서 이미지 업데이트
-            TThread.Synchronize(nil,
-              procedure
-              begin
-                if Assigned(FTargetImage.Picture) then
-                  FTargetImage.Picture.Free;
-                FTargetImage.Picture := TPicture.Create;
-                FTargetImage.Picture.Bitmap.Assign(Bitmap);
-                FTargetImage.Refresh;
-              end);
-
-          finally
-            Bitmap.Free;
-          end;
-        finally
-          MemStream.Free;
-        end;
-
-        Sleep(10); // 10ms 동안 대기
-      end;
-    end;
-  except
-    on E: Exception do
-    begin
-      ShowMessage('애니메이션 처리 중 오류가 발생했습니다: ' + E.Message);
-    end;
-  end;
-  }
-end;
-
-function TAnimatedImageHandler.LoadImageInternal(const FilePath: string): TBitmap;
-begin
-  raise ENotImplementedException.Create;
 end;
 
 end.

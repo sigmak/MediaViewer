@@ -50,7 +50,8 @@ begin
       extension := ExtractFileExt(filePath); // 파일 확장자 추출 (예: '.png')
 
       // 애니메이션 이미지인지 확인
-      if IsAnimatedImage(filePath) then
+      //if IsAnimatedImage(filePath) then
+      if (extension='.gif') or (extension='.webp') then
       begin
         animatedHandler := TAnimatedImageHandler.Create;
         try
