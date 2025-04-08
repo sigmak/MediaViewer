@@ -51,7 +51,7 @@ begin
 
       // 애니메이션 이미지인지 확인
       //if IsAnimatedImage(filePath) then
-      if (extension='.gif') or (extension='.webp') then
+      if (extension='.gif') or (extension='webp') then
       begin
         animatedHandler := TAnimatedImageHandler.Create;
         try
